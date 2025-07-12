@@ -1,43 +1,115 @@
 import serial
 import struct
-import time
+import csv
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from collections import defaultdict, deque
 
-# === Configuration ===
-PORT = '/dev/ttyACM0'      # Change to COM port 
-BAUDRATE = 115200          # Doesn't matter for USB CDC, but needed by pyserial
-CHUNK_SIZE = 4             # 1 byte channel, 3 bytes timestamp
+# ========================
+# User Setup Phase
+# ========================
 
-def decode_event(data):
-    """Decode 4-byte event: 1 byte channel + 3 byte timestamp (little-endian)"""
-    if len(data) != 4:
+def get_comm_type():
+    comm_type = input("Enter communication type (UART, SPI, I2C): ").strip().upper()
+    if comm_type not in {"UART", "SPI", "I2C"}:
+        print("Invalid communication type.")
+        exit(1)
+    return comm_type
+
+def get_channel_mapping(comm_type):
+    mapping = {}
+    if comm_type == "UART":
+        mapping[0] = input("Assign channel CH1 to (RX or TX): ").strip().upper()
+        mapping[1] = input("Assign channel CH2 to (RX or TX): ").strip().upper()
+    elif comm_type == "SPI":
+        mapping[0] = input("Assign channel CH1 to (MOSI, MISO, CLK, SS): ").strip().upper()
+        mapping[1] = input("Assign channel CH2 to (MOSI, MISO, CLK, SS): ").strip().upper()
+        mapping[2] = input("Assign channel CH3 to (MOSI, MISO, CLK, SS): ").strip().upper()
+        mapping[3] = input("Assign channel CH4 to (MOSI, MISO, CLK, SS): ").strip().upper()
+    elif comm_type == "I2C":
+        mapping[0] = input("Assign channel CH1 to (CLK or SDA): ").strip().upper()
+        mapping[1] = input("Assign channel CH2 to (CLK or SDA): ").strip().upper()
+    return mapping
+
+# ========================
+# Data Structures
+# ========================
+
+channel_data = defaultdict(lambda: deque(maxlen=1000))  # stores (time, edge)
+data_log = []  # stores raw CSV log
+
+# ========================
+# USB Handler
+# ========================
+
+def decode_usb_packet(packet_bytes):
+    if len(packet_bytes) != 4:
         return None
-    channel = data[0]
-    # Unpack 3-byte little-endian integer → pad with zero byte at the end
-    timestamp = data[1] | (data[2] << 8) | (data[3] << 16)
-    return channel, timestamp
+    data, = struct.unpack('<I', packet_bytes)
+    edge = (data >> 31) & 0x1
+    channel = (data >> 29) & 0x3
+    time = data & 0x1FFFFFFF
+    return edge, channel, time
+
+# ========================
+# Plotting
+# ========================
+
+fig, ax = plt.subplots()
+lines = {}
+
+# Set up initial empty lines for each channel (up to 4)
+for ch in range(4):
+    lines[ch], = ax.plot([], [], label=f"CH{ch+1}")
+
+ax.set_xlim(0, 50000)
+ax.set_ylim(-0.5, 1.5)
+ax.set_xlabel("Time")
+ax.set_ylabel("Edge")
+ax.legend()
+
+# ========================
+# Real-Time Update Func
+# ========================
+
+def update_plot(frame):
+    for ch, line in lines.items():
+        if ch in channel_data:
+            times, edges = zip(*channel_data[ch]) if channel_data[ch] else ([], [])
+            line.set_data(times, edges)
+    return lines.values()
+
+# ========================
+# Main Function
+# ========================
 
 def main():
-    print(f"Opening serial port {PORT}...")
-    ser = serial.Serial(PORT, BAUDRATE, timeout=1)
+    comm_type = get_comm_type()
+    mapping = get_channel_mapping(comm_type)
 
-    buffer = b''
-    try:
-        print("Listening for events...\n")
-        while True:
-            buffer += ser.read(64)  # Read a USB packet
+    ser = serial.Serial('/dev/ttyUSB0', 115200)  # Change to correct port if needed
 
-            while len(buffer) >= CHUNK_SIZE:
-                event = buffer[:CHUNK_SIZE]
-                buffer = buffer[CHUNK_SIZE:]
+    with open("bitlog.csv", "w", newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["Channel-Type", "Edge", "Time"])
 
-                result = decode_event(event)
-                if result:
-                    channel, timestamp = result
-                    print(f"CH{channel} @ {timestamp} µs")
-    except KeyboardInterrupt:
-        print("\nExiting.")
-    finally:
-        ser.close()
+        def read_serial():
+            while True:
+                packet = ser.read(4)
+                decoded = decode_usb_packet(packet)
+                if decoded:
+                    edge, channel, time = decoded
+                    channel_name = mapping.get(channel+1)
+                    channel_data[channel].append((time, edge))
+                    edge_label = "rising" if edge else "falling"
+                    writer.writerow([channel_name, edge_label, time])
+
+        import threading
+        thread = threading.Thread(target=read_serial, daemon=True)
+        thread.start()
+
+        ani = animation.FuncAnimation(fig, update_plot, interval=100)
+        plt.show()
 
 if __name__ == "__main__":
     main()
