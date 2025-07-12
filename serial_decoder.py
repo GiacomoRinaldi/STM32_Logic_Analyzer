@@ -3,7 +3,7 @@ import struct
 import time
 
 # === Configuration ===
-PORT = '/dev/ttyACM0'      # Change to COM port (e.g., 'COM3' on Windows)
+PORT = '/dev/ttyACM0'      # Change to COM port 
 BAUDRATE = 115200          # Doesn't matter for USB CDC, but needed by pyserial
 CHUNK_SIZE = 4             # 1 byte channel, 3 bytes timestamp
 
