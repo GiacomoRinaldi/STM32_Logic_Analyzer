@@ -87,7 +87,7 @@ def main():
     comm_type = get_comm_type()
     mapping = get_channel_mapping(comm_type)
 
-    ser = serial.Serial('/dev/ttyUSB0', 115200)  # Change to correct port if needed
+    ser = serial.Serial('/dev/tty.usbmodem385A439452311', 115200)  # Change to correct port if needed
 
     with open("bitlog.csv", "w", newline='') as f:
         writer = csv.writer(f)
@@ -99,7 +99,7 @@ def main():
                 decoded = decode_usb_packet(packet)
                 if decoded:
                     edge, channel, time = decoded
-                    channel_name = mapping.get(channel+1)
+                    channel_name = mapping.get(channel)
                     channel_data[channel].append((time, edge))
                     edge_label = "rising" if edge else "falling"
                     writer.writerow([channel_name, edge_label, time])

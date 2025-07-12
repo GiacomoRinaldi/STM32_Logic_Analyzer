@@ -2,62 +2,91 @@ import csv
 import sys
 from collections import defaultdict
 
+def get_line_level_at(transitions, sample_time):
+    level = 1  # UART idle line is high
+    for edge, t in transitions:
+        if t > sample_time:
+            break
+        if edge == 'falling':
+            level = 0
+        elif edge == 'rising':
+            level = 1
+    return level
+
 # ========== UART DECODER ==========
-def decode_uart(filepath):
-    import csv
-
-    baud_rate = int(input("Enter UART baud rate (e.g., 9600): "))
+def decode_uart(filepath, baud_rate, data_bits=8, parity='N', stop_bits=1):
     bit_time_us = 1_000_000 / baud_rate
+    print(f"Decoding UART: {baud_rate} baud, {data_bits} data bits, parity {parity}, {stop_bits} stop bits")
 
-    # Parse the CSV and collect edges for each channel
+    # Read CSV and collect transitions per channel
     channel_data = {}
     with open(filepath, newline='') as csvfile:
         reader = csv.reader(csvfile)
+        next(reader)  # skip header
         for row in reader:
             if len(row) != 3:
                 continue
             channel, edge, timestamp = row
             if channel not in channel_data:
                 channel_data[channel] = []
-            channel_data[channel].append((edge, int(timestamp)))
+            channel_data[channel].append((edge.lower(), int(timestamp)))
 
-    # Decode each channel separately
     for channel, transitions in channel_data.items():
-        transitions.sort(key=lambda x: x[1])  # Sort by time
-        bits = []
+        transitions.sort(key=lambda x: x[1])  # sort by timestamp
         decoded_bytes = []
-
         i = 0
         while i < len(transitions) - 1:
             edge, time = transitions[i]
-            next_edge, next_time = transitions[i + 1]
-
             # Detect start bit: falling edge
-            if edge == "falling":
+            if edge == 'falling':
+                print(f"Found start bit on channel {channel} at time {time}")
                 start_time = time + int(bit_time_us * 1.5)  # center of first data bit
+
+                bits = []
+                for bit_index in range(data_bits):
+                    sample_time = start_time + int(bit_time_us * bit_index)
+                    sampled_state = get_line_level_at(transitions, sample_time)
+                    bits.append(sampled_state)
+
+                # Parity bit sample (if any)
+                parity_bit = None
+                if parity.upper() in ('E', 'O'):
+                    parity_sample_time = start_time + int(bit_time_us * data_bits)
+                    parity_bit = get_line_level_at(transitions, parity_sample_time)
+
+                # Compose byte (LSB first)
                 byte = 0
-                for bit_index in range(8):
-                    sample_time = start_time + int(bit_index * bit_time_us)
-                    # Find nearest transition before or after sample_time
-                    sampled_state = 1  # default high if idle
-                    for j in range(i, len(transitions)):
-                        if transitions[j][1] > sample_time:
-                            if transitions[j][0] == "rising":
-                                sampled_state = 1
-                            else:
-                                sampled_state = 0
-                            break
-                    byte |= (sampled_state << bit_index)
+                for idx, bit_val in enumerate(bits):
+                    byte |= (bit_val << idx)
+
+                # Check parity if enabled
+                if parity.upper() == 'E':  # even parity
+                    expected_parity = (sum(bits) % 2 == 0)
+                    if parity_bit != expected_parity:
+                        print(f"Warning: parity error on byte {byte:02X}")
+                elif parity.upper() == 'O':  # odd parity
+                    expected_parity = (sum(bits) % 2 == 1)
+                    if parity_bit != expected_parity:
+                        print(f"Warning: parity error on byte {byte:02X}")
+
                 decoded_bytes.append(byte)
-                i += 10  # skip past full frame (start, 8 data, stop)
+
+                # Skip whole frame: start + data + parity + stop bits
+                frame_bits = 1 + data_bits + (1 if parity_bit is not None else 0) + stop_bits
+                i += frame_bits
             else:
                 i += 1
 
+        # Output decoded bytes as hex and ASCII
+        print(f"Decoded UART data for channel {channel}:")
+        print("Hex: ", " ".join(f"{b:02X}" for b in decoded_bytes))
+        print("ASCII:", "".join(chr(b) if 32 <= b < 127 else '.' for b in decoded_bytes))
+
         output_file = f"{channel}_decoded_uart.txt"
         with open(output_file, "w") as f:
-            for b in decoded_bytes:
-                f.write(f"{b:02X} ")
-        print(f"Decoded UART data for channel {channel} written to {output_file}")
+            f.write(" ".join(f"{b:02X}" for b in decoded_bytes) + "\n")
+            f.write("".join(chr(b) if 32 <= b < 127 else '.' for b in decoded_bytes))
+        print(f"Decoded UART data written to {output_file}")
 
 # ========== SPI DECODER ==========
 def decode_spi(csv_file):
@@ -164,7 +193,11 @@ if __name__ == "__main__":
     file_path = sys.argv[2]
 
     if protocol == 'uart':
-        decode_uart(file_path)
+        baud = int(input("Enter UART baud rate (e.g., 9600): "))
+        data_bits = int(input("Enter number of data bits (7 or 8): "))
+        parity = input("Enter parity (N = none, E = even, O = odd): ").upper()
+        stop_bits = int(input("Enter number of stop bits (1 or 2): "))
+        decode_uart(file_path, baud, data_bits, parity, stop_bits)
     elif protocol == 'spi':
         decode_spi(file_path)
     elif protocol == 'i2c':
