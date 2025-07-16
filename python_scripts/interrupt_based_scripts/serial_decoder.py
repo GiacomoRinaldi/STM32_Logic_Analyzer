@@ -75,9 +75,9 @@ def decode_uart_frame(transitions, start_time, bit_time_us, data_bits=8, parity=
         
         # Check parity
         data_ones = sum(bits)
-        if parity.upper() == 'E':  # Even parity
+        if parity.upper() == 'E':  
             parity_ok = (data_ones % 2) == (1 - parity_bit)
-        else:  # Odd parity
+        else:  
             parity_ok = (data_ones % 2) == parity_bit
             
         if not parity_ok:
@@ -100,7 +100,7 @@ def decode_uart(filepath, baud_rate, data_bits=8, parity='N', stop_bits=1):
     """
     Main UART decoder function
     """
-    bit_time_us = 1_000_000 / baud_rate
+    bit_time_us = 5_140_000 / baud_rate # set as needed based on resolution (5.14 MHz)
     
     # Read CSV file
     channel_data = {}
@@ -201,9 +201,9 @@ def decode_spi(csv_file, clock_polarity=0, clock_phase=0):
         transitions[channel].sort(key=lambda x: x[1])
 
     # Determine sampling edge based on polarity and phase
-    if clock_polarity == 0:  # Clock idle low
+    if clock_polarity == 0:  
         sample_edge = 'rising' if clock_phase == 0 else 'falling'
-    else:  # Clock idle high
+    else:  
         sample_edge = 'falling' if clock_phase == 0 else 'rising'
 
     clk_edges = [t for e, t in transitions.get('SCK', []) if e == sample_edge]
