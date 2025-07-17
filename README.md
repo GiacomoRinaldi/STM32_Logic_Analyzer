@@ -11,10 +11,9 @@ This project implements a dual-mode logic analyzer capable of capturing and anal
 
 The device streams captured data over USB and includes Python scripts for visualization and protocol decoding.
 
-*[Add photos of circuit schematic, PCB, and device in use here]*
 ### Circuit Shematic
 <div align="center">
-  <img src="misc/ckt_shematic.png" alt="PCB Layout" width="1000">
+  <img src="misc/ckt_shematic.png" alt="PCB Layout" width="800">
 </div>
 
 ### PCB Layout
