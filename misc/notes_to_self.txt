@@ -1,0 +1,4 @@
+Links to remember for V2 of the project:
+- Level shifter spec sheet: https://www.ti.com/lit/ds/symlink/txs0108e.pdf?ts=1753543519183
+- USB3300 spec sheet: https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/00001783C.pdf
+- OLED spec sheet: https://mm.digikey.com/Volume0/opasdata/d220001/medias/docus/5485/WEA012864DBPP3N00003.pdf?_gl=1*4klv14*_up*MQ..*_gs*MQ..&gclid=Cj0KCQjw-ZHEBhCxARIsAGGN96L9RnlrsHEPMkxJdvx23lnOKiBOrNp6Va996A9DQlnU9NVyAwmR0R4aAqnXEALw_wcB&gclsrc=aw.ds&gbraid=0AAAAADrbLlj2oPeaWuWb4kLDeO83WBg-r
