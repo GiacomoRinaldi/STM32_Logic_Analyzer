@@ -13,7 +13,7 @@ The device streams captured data over USB and includes Python scripts for visual
 
 ### Circuit Shematic
 <div align="center">
-  <img src="misc/ckt_shematic.png" alt="PCB Layout" width="800">
+  <img src="misc/ckt_shematic.png" alt="Circuit Schematic" width="800">
 </div>
 
 ### PCB Layout
@@ -30,6 +30,18 @@ The device streams captured data over USB and includes Python scripts for visual
   <tr>
     <td align="center">SPI Wiring</td>
     <td align="center">Example Trace</td>
+  </tr>
+</table>
+
+### Current Work - 2nd Iteration of Device
+<table>
+  <tr>
+    <td><img src="misc/v2_ckt_schematic.png" alt="v2_schematic" width="500"></td>
+    <td><img src="misc/v2PCB.png" alt="v2_PCB" width="450"></td>
+  </tr>
+  <tr>
+    <td align="center">V2.0 Circuit Schematic</td>
+    <td align="center">V2.0 PCB</td>
   </tr>
 </table>
 
